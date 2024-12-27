@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beat Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #444;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input, textarea, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .beat-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            background-color: #fdfdfd;
+        }
+        .beat-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .beat-item audio {
+            display: block;
+            margin-top: 10px;
+        }
+        .delete-btn {
+            background-color: #dc3545;
+            color: #fff;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .delete-btn:hover {
+            background-color: #a71d2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Your Beat</h1>
+        <form id="upload-form">
+            <label for="title">Title:</label>
+            <input type="text" id="title" name="title" required>
+            
+            <label for="description">Description:</label>
+            <textarea id="description" name="description" required></textarea>
+            
+            <label for="beat">Beat File (MP3):</label>
+            <input type="file" id="beat" name="beat" accept="audio/mpeg" required>
+            
+            <label for="image">Image (optional):</label>
+            <input type="file" id="image" name="image" accept="image/*">
+            
+            <button type="submit">Upload Beat</button>
+        </form>
+        
+        <h2>Uploaded Beats</h2>
+        <div id="beat-list"></div>
+    </div>
+    
+    <script>
+        const form = document.getElementById('upload-form');
+        const beatList = document.getElementById('beat-list');
+
+        // Fetch all beats on load
+        async function fetchBeats() {
+            const response = await fetch('/api/beats');
+            const beats = await response.json();
+
+            beatList.innerHTML = beats.map(beat => `
+                <div class="beat-item" data-id="${beat.id}">
+                    <h3>${beat.title}</h3>
+                    <p>${beat.description}</p>
+                    <audio controls>
+                        <source src="${beat.beatFileUrl}" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                    ${beat.imageUrl ? `<img src="${beat.imageUrl}" alt="${beat.title}" class="beat-image">` : ''}
+                    <button class="delete-btn">Delete</button>
+                </div>
+            `).join('');
+
+            // Attach delete event listeners
+            document.querySelectorAll('.delete-btn').forEach(button => {
+                button.addEventListener('click', handleDelete);
+            });
+        }
+
+        // Upload new beat
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert(error.error || 'Failed to upload beat');
+                    return;
+                }
+
+                // Clear the form and reload the beat list
+                form.reset();
+                fetchBeats();
+            } catch (error) {
+                console.error('Error uploading beat:', error);
+            }
+        });
+
+        // Delete beat
+        async function handleDelete(e) {
+            const beatItem = e.target.closest('.beat-item');
+            const beatId = beatItem.getAttribute('data-id');
+
+            try {
+                const response = await fetch(`/api/beats/${beatId}`, {
+                    method: 'DELETE',
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert(error.error || 'Failed to delete beat');
+                    return;
+                }
+
+                // Remove the beat from the DOM
+                beatItem.remove();
+            } catch (error) {
+                console.error('Error deleting beat:', error);
+            }
+        }
+
+        // Initial load of beats
+        fetchBeats();
+    </script>
+</body>
+</html>
